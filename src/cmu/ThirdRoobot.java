@@ -1,9 +1,7 @@
 package cmu;
 
-import robocode.HitByBulletEvent;
-import robocode.HitWallEvent;
+import robocode.*;
 import robocode.Robot;
-import robocode.ScannedRobotEvent;
 
 import java.awt.*;
 
@@ -26,22 +24,12 @@ public class ThirdRoobot extends Robot{
         else
             fire(1.1);
 
-        if (getOthers()<3){
-            //i can do something else based on number of opponents on board
-        }
-
-        if(getEnergy()>20) {
-            //decide fire power
-
-        }
     }
 
     public void onHitByBullet(HitByBulletEvent e) {
         turnRight(45);
         back(100);
+
     }
 
-    public void onHitWall(HitWallEvent e) {
-        //back(20);
-    }
 }
