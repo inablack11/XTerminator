@@ -1,4 +1,4 @@
-package cmu;
+package cmu.examples;
 
 import robocode.*;
 import java.text.NumberFormat;

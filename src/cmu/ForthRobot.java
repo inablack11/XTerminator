@@ -1,65 +1,133 @@
 package cmu;
 
+import cmu.examples.EnemyBot;
 import robocode.*;
-import robocode.Robot;
 
 import java.awt.*;
-import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
 
 //better for multiplayer
 public class ForthRobot extends AdvancedRobot {
+    private byte scanDirection = 1;
+    private EnemyBot enemy = new EnemyBot();
+
     public void run() {
-        setColors(Color.black, Color.yellow, Color.gray, Color.lightGray, Color.orange);
+
+        setAllColors(Color.magenta);
 //        setAdjustGunForRobotTurn(true);
         setAdjustRadarForRobotTurn(true);
+
+        enemy.reset();
+
         while (true) {
-//            turnRadarRight(10000);
-            ahead(100);
-            turnRadarRight(360);
-            back(100);
-            turnRadarRight(360);
+//            if(getOthers() > 1) {
+//                setAhead(100);
+//                setTurnRadarRight(360);
+//                setBack(100);
+//                setTurnRadarRight(360);
+//            } else {
+//                // Turn the scanner until we find an enemy robot
+//                setTurnRadarRight(36000);
+//            }
+
+
+            doScanner();
+            doMovement();
+            smartFire();
+            execute();
+
+        }
+    }
+    void doScanner() {
+        setTurnRadarRight(360);
+    }
+
+    void doMovement() {
+        // turning here causes a weird behavior, prolly because we're working
+        // with outdated information
+        //setTurnRight(enemy.getBearing());
+
+        // move a little closer
+        if (enemy.getDistance() > 200)
+            setAhead(enemy.getDistance() / 2);
+        // but not too close
+        if (enemy.getDistance() < 100)
+            setBack(enemy.getDistance());
+    }
+    public void onScannedRobot(ScannedRobotEvent e) {
+
+        // check if we have no enemy or found the one we were tracking
+        if (enemy.none() || e.getName().equals(enemy.getName())) {
+            enemy.update(e);
+
+            // When we scan a robot, turn toward him
+            turnRight(e.getBearing());
+
+            // move a little closer
+            if (e.getDistance() > 200)
+                setAhead(e.getDistance() / 2);
+            // but not too close
+            if (e.getDistance() < 100)
+                setBack(e.getDistance());
+
+            if(getOthers() > 1) { //if more than one opponent
+
+                // shoot at him
+                smartFire();
+
+                // wobble the radar to generate another scan event
+                scanDirection *= -1;
+                setTurnRadarRight(36000 * scanDirection);
+
+            } else {
+
+                smartFire();
+
+                // Lock on to our target (this time for sure) - useful in 1on1 mode
+                setTurnRadarRight(getHeading() - getRadarHeading() + e.getBearing());
+            }
         }
     }
 
-    public void onScannedRobot(ScannedRobotEvent e) {
-        System.out.println("robot was scanned. turning gun " + (getHeading() - getGunHeading() + e.getBearing()));
-        System.out.println("getHeading " + getHeading() +
-                "\ngetGunHeading " + getGunHeading() +
-                "\ne.getBearing " + e.getBearing());
-        turnRight(e.getBearing());
-        smartFire(e.getDistance());
 
-    }
+    private void smartFire() {
 
+        // don't fire if there's no enemy
+        if (enemy.none()) return;
 
-    private void smartFire(double distance) {
-        System.out.println("firing");
-        if (distance < 200 && getEnergy() > 20) {
-            fire(3);
-        } else
-            fire(1.1);
+        // convenience variable
+        double max = Math.max(getBattleFieldHeight(), getBattleFieldWidth());
+
+        // only shoot if we're (close to) pointing at our enemy
+        if (Math.abs(getTurnRemaining()) < 10) {
+            if (enemy.getDistance() < max / 3) {
+                // fire hard when close
+                setFire(3);
+            } else {
+                // otherwise, just plink him
+                setFire(1.1);
+            }
+        }
     }
 
     private void ramFire(double energy) {
-        if(energy > 16)
-            fire(3);
-        else if (energy > 10)
-            fire(2);
-        else if (energy > 4)
-            fire(1);
-        else if (energy > 2)
-            fire(0.5);
-        else if (energy > 0.4)
-            fire(0.1);
+        setFire(3);
 
         doRam();
 
     }
 
+
+    private void doRam() {
+        setBack(50);
+        setAhead(100);
+    }
+
+
     public void onHitByBullet(HitByBulletEvent e) {
-        turnRight(90);
-        back(100);
+        setTurnRight(90);
+        setBack(100);
+        setTurnLeft(90);
     }
 
 
@@ -69,21 +137,14 @@ public class ForthRobot extends AdvancedRobot {
             ramFire(event.getEnergy());
         else if (event.getBearing() > -90 && event.getBearing() <= 90) { //if it's in front of me
 
-            smartFire(0);
-            back(100);
+            smartFire();
+            setBack(100);
         } else {
             System.out.println("on hit bearing back " + event.getBearing());
-            smartFire(0);
-            ahead(100);
+            smartFire();
+            setAhead(100);
 
         }
-    }
-
-    private void doRam() {
-        System.out.println("energy before=" + getEnergy());
-        back(50);
-        ahead(100);
-        System.out.println("energy after=" + getEnergy());
     }
 
 //    public void onHitWall(HitWallEvent e) {
@@ -98,30 +159,37 @@ public class ForthRobot extends AdvancedRobot {
 //        back(100);
 //    }
 
+    public void onRobotDeath(RobotDeathEvent e) {
+        // check if the enemy we were tracking died
+        if (e.getName().equals(enemy.getName())) {
+            enemy.reset();
+        }
+    }
+
     public void onWin(WinEvent e) {
-//        turnRight(90);
-//        turnGunLeft(90);
-//        turnRight(90);
-//        turnGunLeft(90);
-//        turnRight(90);
-//        turnGunLeft(90);
-//        turnRight(90);
-//        turnGunLeft(90);
-//
-//        turnRight(90);
-//        turnGunLeft(90);
-//        turnRight(90);
-//        turnGunLeft(90);
-//        turnRight(90);
-//        turnGunLeft(90);
-//        turnRight(90);
-//        turnGunLeft(90);
-//
-//        setAllColors(Color.cyan);
-//        setAllColors(Color.green);
-//        setAllColors(Color.red);
-//        setAllColors(Color.blue);
-//        setAllColors(Color.magenta);
+        setTurnRight(90);
+        setTurnGunLeft(90);
+        setTurnRight(90);
+        setTurnGunLeft(90);
+        setTurnRight(90);
+        setTurnGunLeft(90);
+        setTurnRight(90);
+        setTurnGunLeft(90);
+
+        setTurnRight(90);
+        setTurnGunLeft(90);
+        setTurnRight(90);
+        setTurnGunLeft(90);
+        setTurnRight(90);
+        setTurnGunLeft(90);
+        setTurnRight(90);
+        setTurnGunLeft(90);
+
+        setAllColors(Color.cyan);
+        setAllColors(Color.green);
+        setAllColors(Color.red);
+        setAllColors(Color.blue);
+        setAllColors(Color.magenta);
 
     }
 
@@ -131,4 +199,7 @@ public class ForthRobot extends AdvancedRobot {
 
         return randomNum;
     }
+
+
+
 }
