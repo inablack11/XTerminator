@@ -7,7 +7,7 @@ import java.awt.*;
 import java.util.concurrent.ThreadLocalRandom;
 
 //better for multiplayer
-public class ForthRobot extends AdvancedRobot {
+public class WIPRobot extends AdvancedRobot {
     private byte scanDirection = 1;
     private EnemyBot enemy = new EnemyBot();
 
